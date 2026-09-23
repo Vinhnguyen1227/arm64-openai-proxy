@@ -1,0 +1,115 @@
+# Map virtual authorization keys to valid flag (1 = valid, 0 = invalid)
+map $http_authorization $auth_valid {
+    default 0;
+    "Bearer ${USER_A_KEY}" 1;
+    "Bearer ${USER_B_KEY}" 1;
+}
+
+# Custom debug log format capturing downstream client headers and upstream status
+log_format proxy_debug '$remote_addr - [$time_local] "$request" $status '
+                       'downstream_ua:"$http_user_agent" '
+                       'downstream_auth:"$http_authorization" '
+                       'upstream_host:"${UPSTREAM_HOST}" '
+                       'upstream_addr:"$upstream_addr" '
+                       'upstream_status:"$upstream_status" '
+                       'upstream_time:"$upstream_response_time"';
+
+server {
+    listen ${PORT};
+    server_name _;
+
+    # Direct access logs to stdout with the debug format
+    access_log /dev/stdout proxy_debug;
+
+    # Default response type for JSON errors and status
+    default_type application/json;
+
+    # Allow large payload buffers for multi-turn chat completions
+    client_max_body_size 50M;
+
+    # Health check endpoint
+    location = /healthz {
+        return 200 '{"status":"ok","engine":"nginx","port":"${PORT}"}\n';
+    }
+
+    # Proxy all OpenAI / MiMo v1 endpoints (Production Upstream)
+    location /v1/ {
+        # CORS preflight handling for web-based clients
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept' always;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        # 1. Enforce Authentication Gate
+        if ($auth_valid = 0) {
+            return 401 '{"error":{"message":"Invalid Virtual API Key. Unauthorized proxy access.","type":"invalid_request_error","code":"invalid_api_key"}}\n';
+        }
+
+        # 2. Upstream Proxy Target (supports flexible scheme and port)
+        proxy_pass ${UPSTREAM_SCHEME}://${UPSTREAM_HOST}:${UPSTREAM_PORT};
+
+        # 3. SSL Configuration for SNI (active when scheme is https)
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${UPSTREAM_HOST};
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+
+        # 4. Canonical Outbound Headers
+        proxy_set_header Host ${UPSTREAM_HOST};
+        proxy_set_header Authorization "Bearer ${MIMO_API_KEY}";
+        proxy_set_header User-Agent "opencode/1.18.21 ai-sdk/...";
+        proxy_set_header Content-Type $http_content_type;
+        proxy_set_header Accept $http_accept;
+
+        # 5. Strip Tracking & Fingerprinting Headers
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header X-Forwarded-Proto "";
+        proxy_set_header X-Forwarded-Host "";
+
+        # 6. Zero-Buffer Streaming (SSE chunked transfer)
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding on;
+
+        # 7. Extended timeouts for LLM reasoning and generation
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+    }
+
+    # Dedicated mock test location (Unit testing & header assertion)
+    location /mock-v1/ {
+        if ($auth_valid = 0) {
+            return 401 '{"error":{"message":"Invalid Virtual API Key. Unauthorized proxy access.","type":"invalid_request_error","code":"invalid_api_key"}}\n';
+        }
+
+        proxy_pass http://host.docker.internal:9000/v1/;
+        proxy_set_header Host host.docker.internal;
+        proxy_set_header Authorization "Bearer ${MIMO_API_KEY}";
+        proxy_set_header User-Agent "opencode/1.18.21 ai-sdk/...";
+        proxy_set_header Content-Type $http_content_type;
+        proxy_set_header Accept $http_accept;
+
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header X-Forwarded-Proto "";
+        proxy_set_header X-Forwarded-Host "";
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding on;
+    }
+
+    # Root fallback
+    location / {
+        return 404 '{"error":{"message":"Not Found. Use /v1 endpoints.","type":"invalid_request_error","code":"not_found"}}\n';
+    }
+}

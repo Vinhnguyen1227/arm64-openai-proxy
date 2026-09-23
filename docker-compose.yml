@@ -1,0 +1,21 @@
+services:
+  mimo-proxy:
+    image: nginx:alpine
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    container_name: mimo-nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    environment:
+      - PORT=${PORT:-8080}
+      - UPSTREAM_HOST=${UPSTREAM_HOST:-api.vilao.ai}
+      - UPSTREAM_PORT=${UPSTREAM_PORT:-443}
+      - UPSTREAM_SCHEME=${UPSTREAM_SCHEME:-https}
+      - MIMO_API_KEY=${MIMO_API_KEY}
+      - USER_A_KEY=${USER_A_KEY:-sk-userA-vkey-001}
+      - USER_B_KEY=${USER_B_KEY:-sk-userB-vkey-002}
+      - NGINX_ENVSUBST_FILTER_ENV=PORT UPSTREAM_HOST UPSTREAM_PORT UPSTREAM_SCHEME MIMO_API_KEY USER_A_KEY USER_B_KEY
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
