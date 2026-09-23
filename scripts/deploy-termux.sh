@@ -59,6 +59,10 @@ http {
     sendfile        on;
     keepalive_timeout  65;
 
+    # Fix Nginx map_hash_bucket_size error on ARM64 / Termux for long Bearer tokens
+    map_hash_bucket_size 128;
+    map_hash_max_size 2048;
+
     # Map virtual authorization keys to valid flag
     map $http_authorization $auth_valid {
         default 0;

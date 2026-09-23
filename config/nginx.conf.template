@@ -1,3 +1,7 @@
+# Increase hash bucket size for long Bearer authorization tokens
+map_hash_bucket_size 128;
+map_hash_max_size 2048;
+
 # Map virtual authorization keys to valid flag (1 = valid, 0 = invalid)
 map $http_authorization $auth_valid {
     default 0;
