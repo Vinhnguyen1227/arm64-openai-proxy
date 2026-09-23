@@ -17,7 +17,10 @@ echo "[+] Wake-lock acquired. (Ensure Termux battery is set to Unrestricted in A
 
 echo "[*] Step 3: Loading configuration from .env..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/.env" ]; then
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    export $(grep -v '^#' "$SCRIPT_DIR/../.env" | xargs)
+    echo "[+] Loaded environment from $SCRIPT_DIR/../.env"
+elif [ -f "$SCRIPT_DIR/.env" ]; then
     export $(grep -v '^#' "$SCRIPT_DIR/.env" | xargs)
     echo "[+] Loaded environment from $SCRIPT_DIR/.env"
 else

@@ -16,6 +16,6 @@ services:
       - USER_B_KEY=${USER_B_KEY:-sk-userB-vkey-002}
       - NGINX_ENVSUBST_FILTER_ENV=PORT UPSTREAM_HOST UPSTREAM_PORT UPSTREAM_SCHEME MIMO_API_KEY USER_A_KEY USER_B_KEY
     volumes:
-      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./config/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -31,7 +31,33 @@ The proxy strips client network fingerprints, isolates tenants with virtual keys
 
 ---
 
-## 2. How the Encrypt / Decrypt Pipeline Works
+## 2. Repository Structure
+
+```text
+arm64-openai-proxy/
+├── .env.example              # Environment variables template (safe defaults)
+├── .gitignore                # Git exclusions (strictly blocks secrets)
+├── docker-compose.yml        # Multi-arch Docker runner (ARM64/AMD64)
+├── README.md                 # Master architecture & deployment guide
+│
+├── config/                   # Configuration files & templates
+│   ├── nginx.conf.template   # Dynamic Nginx proxy template
+│   ├── opencode.json         # Client configuration (local Wi-Fi)
+│   └── opencode.json.example # OpenCode client configuration template
+│
+├── scripts/                  # Deployment & operational scripts
+│   └── deploy-termux.sh      # 1-click Termux ARM64 installer (with wake-lock)
+│
+└── tests/                    # Testing harnesses & mocks
+    ├── mock-upstream.js      # Mock API server with header inspection
+    ├── test-payload.json     # Sample cURL JSON payload
+    ├── test-proxy.ps1        # Proxy assertion script
+    └── verify-traffic.ps1    # 8-point automated test harness
+```
+
+---
+
+## 3. How the Encrypt / Decrypt Pipeline Works
 
 The proxy operates as a **TLS Termination and Bridging Gateway**:
 
@@ -93,10 +119,10 @@ Because Nginx receives the downstream request in plaintext, its rewrite engine:
 
 ---
 
-## 5. Verification & Test Evidence
+## 6. Verification & Test Evidence
 
 ### A. Windows Docker ARM64 Automated Test Suite
-Ran [`verify-traffic.ps1`](file:///d:/proxy-test/verify-traffic.ps1):
+Ran [`verify-traffic.ps1`](file:///d:/proxy-test/tests/verify-traffic.ps1):
 ```text
 ======================================================================
  AI REVERSE PROXY: TRAFFIC & HEADER INSPECTION TEST HARNESS
@@ -138,15 +164,15 @@ Content-Type: application/json; charset=utf-8
 
 ---
 
-## 6. Deployment Guides
+## 7. Deployment Guides
 
 ### Option 1: Physical Phone Deployment (Termux ARM64)
 1. Install Termux APK from [GitHub Releases](https://github.com/termux/termux-app/releases) (*not Google Play Store*).
 2. Set Termux battery to **Unrestricted** in Android Settings.
 3. Clone or copy repo to Termux and run:
    ```bash
-   chmod +x deploy-termux.sh
-   ./deploy-termux.sh
+   chmod +x scripts/deploy-termux.sh
+   ./scripts/deploy-termux.sh
    ```
 4. Script installs Nginx, activates wake-lock, starts the daemon, and prints the phone Wi-Fi IP address.
 
@@ -163,9 +189,9 @@ Content-Type: application/json; charset=utf-8
 
 ---
 
-## 7. Connecting OpenCode in VS Code
+## 8. Connecting OpenCode in VS Code
 
-Create [`opencode.json`](file:///d:/proxy-test/opencode.json) in your workspace:
+Copy [`config/opencode.json.example`](file:///d:/proxy-test/config/opencode.json.example) into your project root as `opencode.json`:
 
 ```json
 {
@@ -194,7 +220,7 @@ In OpenCode TUI, type `/model` and select `mimo/hana/mimo-v2.5`. All chat comple
 
 ---
 
-## 8. Real-Time Telemetry & Log Tracing
+## 9. Real-Time Telemetry & Log Tracing
 
 In Termux on your phone, watch incoming and outgoing traffic live:
 
